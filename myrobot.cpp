@@ -4,13 +4,19 @@
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
 
-const int NumVertices = 36; //(6 faces)(2 triangles/face)(3 vertices/triangle)
+const int NumCuboidVertices = 36; //(6 faces)(2 triangles/face)(3 cuboidVertices/triangle)
+point4 cuboidPoints[NumCuboidVertices];
+color4 cuboidColors[NumCuboidVertices];
 
-point4 points[NumVertices];
-// color4 currentColor;
-// color4 colors[NumVertices];
+const int NumSphereQuadVertices = 342; // 8 rows of 18 quads
+point4 sphereQuadPoints[NumSphereQuadVertices];
+color4 sphereQuadColors[NumSphereQuadVertices];
 
-point4 vertices[8] = {
+const int NumSphereFanVertices = 40;
+point4 sphereFanPoints[NumSphereFanVertices];
+color4 sphereFanColors[NumSphereFanVertices];
+
+point4 cuboidVertices[8] = {
     point4( -0.5, -0.5,  0.5, 1.0 ),
     point4( -0.5,  0.5,  0.5, 1.0 ),
     point4(  0.5,  0.5,  0.5, 1.0 ),
@@ -44,7 +50,10 @@ const GLfloat UPPER_ARM_WIDTH  = 0.5;
 
 // Shader transformation matrices
 mat4  model_view;
-GLuint ModelView, Projection, ChosenColor;
+// GLuint ChosenColor;
+
+GLuint program, cuboid_vao, sphere_fan_vao, sphere_quad_vao;
+GLuint vPosition, vColor, ModelView, Projection;
 
 // Array of rotation angles (in degrees) for each rotation axis
 enum { Base = 0, LowerArm = 1, UpperArm = 2, NumAngles = 3 };
@@ -59,25 +68,23 @@ const int  Quit = 4;
 
 int Index = 0;
 
-void
-quad( int a, int b, int c, int d )
+void quad( int a, int b, int c, int d )
 {
-    // colors[Index] = vertex_colors[a];
-    points[Index] = vertices[a]; Index++;
-    // colors[Index] = vertex_colors[a];
-    points[Index] = vertices[b]; Index++;
-    // colors[Index] = vertex_colors[a];
-    points[Index] = vertices[c]; Index++;
-    // colors[Index] = vertex_colors[a];
-    points[Index] = vertices[a]; Index++;
-    // colors[Index] = vertex_colors[a];
-    points[Index] = vertices[c]; Index++;
-    // colors[Index] = vertex_colors[a];
-    points[Index] = vertices[d]; Index++;
+    cuboidColors[Index] = vertex_colors[a];
+    cuboidPoints[Index] = cuboidVertices[a]; Index++;
+    cuboidColors[Index] = vertex_colors[a];
+    cuboidPoints[Index] = cuboidVertices[b]; Index++;
+    cuboidColors[Index] = vertex_colors[a];
+    cuboidPoints[Index] = cuboidVertices[c]; Index++;
+    cuboidColors[Index] = vertex_colors[a];
+    cuboidPoints[Index] = cuboidVertices[a]; Index++;
+    cuboidColors[Index] = vertex_colors[a];
+    cuboidPoints[Index] = cuboidVertices[c]; Index++;
+    cuboidColors[Index] = vertex_colors[a];
+    cuboidPoints[Index] = cuboidVertices[d]; Index++;
 }
 
-void
-colorcube()
+void colorcube()
 {
     quad( 1, 0, 3, 2 );
     quad( 2, 3, 7, 6 );
@@ -85,6 +92,57 @@ colorcube()
     quad( 6, 5, 1, 2 );
     quad( 4, 5, 6, 7 );
     quad( 5, 4, 0, 1 );
+}
+
+void compute_sphere(){
+    const float DegreesToRadians = M_PI / 180.0; // M_PI = 3.14159...
+    int k = 0;
+
+    for(float phi = -80.0; phi <= 80.0; phi += 20.0)
+    {
+        float phir = phi*DegreesToRadians;
+        float phir20 = (phi + 20.0)*DegreesToRadians;
+        for(float theta = -180.0; theta <= 180.0; theta += 20.0)
+        {
+            float thetar = theta*DegreesToRadians;
+            sphereQuadPoints[k] = vec3(sin(thetar)*cos(phir),
+            cos(thetar)*cos(phir), sin(phir));
+            k++;
+            sphereQuadPoints[k] = vec3(sin(thetar)*cos(phir20),
+            cos(thetar)*cos(phir20), sin(phir20));
+            k++;
+        }
+    }
+
+    k = 0;
+    sphereFanPoints[k] = vec3(0.0, 0.0, 1.0);
+    k++;
+    float sin80 = sin(80.0*DegreesToRadians);
+    float cos80 = cos(80.0*DegreesToRadians);
+
+    for(float theta = -180.0; theta <= 180.0; theta += 20.0)
+    {
+        float thetar = theta*DegreesToRadians;
+        sphereFanPoints[k] = vec3(sin(thetar)*cos80,
+        cos(thetar)*cos80, sin80);
+        k++;
+    }
+    sphereFanPoints[k] = vec3(0.0, 0.0, -1.0);
+    k++;
+    for(float theta = -180.0; theta <= 180.0; theta += 20.0)
+    {
+        float thetar = theta*DegreesToRadians;
+        sphereFanPoints[k] = vec3(sin(thetar)*cos80,
+        cos(thetar)*cos80, -sin80);
+        k++;
+    }
+
+    for(auto& x: sphereFanColors) {
+        x = vertex_colors[1];
+    }
+    for(auto& x: sphereQuadColors) {
+        x = vertex_colors[1];
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -95,59 +153,75 @@ to its state before functions were entered and use
 rotation, translation, and scaling to create instances
 of symbols (cube and cylinder */
 
-void
-base()
+void base()
 {
     mat4 instance = ( Translate( 0.0, 0.5 * BASE_HEIGHT, 0.0 ) *
 		 Scale( BASE_WIDTH,
 			BASE_HEIGHT,
 			BASE_WIDTH ) );
 
-    glUniform4fv(ChosenColor, 1, vertex_colors[3]);
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
-
-    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
 //----------------------------------------------------------------------------
 
-void
-upper_arm()
+void upper_arm()
 {
     mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) *
 		      Scale( UPPER_ARM_WIDTH,
 			     UPPER_ARM_HEIGHT,
 			     UPPER_ARM_WIDTH ) );
 
-    glUniform4fv(ChosenColor, 1, vertex_colors[1]);
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
-    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
 //----------------------------------------------------------------------------
 
-void
-lower_arm()
+void lower_arm()
 {
     mat4 instance = ( Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) *
 		      Scale( LOWER_ARM_WIDTH,
 			     LOWER_ARM_HEIGHT,
 			     LOWER_ARM_WIDTH ) );
 
-    glUniform4fv(ChosenColor, 1, vertex_colors[4]);
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
-    glDrawArrays( GL_TRIANGLES, 0, NumVertices );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
 //----------------------------------------------------------------------------
 
-void
-display( void )
+void draw_sphere()
+{
+    // TODO: msk change the bottom one
+    mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ) *
+              Scale( UPPER_ARM_WIDTH,
+                 UPPER_ARM_WIDTH,
+                 UPPER_ARM_WIDTH ) );
+
+    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+
+    glBindVertexArray( sphere_quad_vao );
+    glDrawArrays( GL_TRIANGLE_STRIP, 0, NumSphereQuadVertices );
+
+    glBindVertexArray( sphere_fan_vao );
+    glDrawArrays( GL_TRIANGLE_FAN, 0, NumSphereFanVertices );
+}
+
+//----------------------------------------------------------------------------
+
+void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
+    model_view = mat4( 1.0 ) * RotateY(Theta[Base] );
+    draw_sphere();
+    
+    glBindVertexArray( cuboid_vao );
+
     // Accumulate ModelView Matrix as we traverse the tree
-    model_view = RotateY(Theta[Base] );
+    model_view *= RotateY(Theta[Base] );
     base();
 
     model_view *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
@@ -163,76 +237,128 @@ display( void )
 
 //----------------------------------------------------------------------------
 
-void
-init( void )
+void init_cuboid()
 {
     colorcube();
     
     // Create a vertex array object
-    GLuint vao;
-    glGenVertexArrays( 1, &vao );
-    glBindVertexArray( vao );
+    glGenVertexArrays( 1, &cuboid_vao );
+    glBindVertexArray( cuboid_vao );
 
     // Create and initialize a buffer object
     GLuint buffer;
     glGenBuffers( 1, &buffer );
     glBindBuffer( GL_ARRAY_BUFFER, buffer );
-    glBufferData( GL_ARRAY_BUFFER, sizeof(points), points, GL_DYNAMIC_DRAW );
 
-    // glBufferData( GL_ARRAY_BUFFER, sizeof(points) + sizeof(colors),
-    //       NULL, GL_DYNAMIC_DRAW );
-    // glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(points), points );
-    // glBufferSubData( GL_ARRAY_BUFFER, sizeof(points), sizeof(colors), colors );
-    
-    // Load shaders and use the resulting shader program
-    GLuint program = InitShader( "vshader81.glsl", "fshader81.glsl" );
-    glUseProgram( program );
-    
-    GLuint vPosition = glGetAttribLocation( program, "vPosition" );
+    // glBufferData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), cuboidPoints, GL_DYNAMIC_DRAW );
+
+    glBufferData( GL_ARRAY_BUFFER, 
+        sizeof(cuboidPoints) + sizeof(cuboidColors),
+        NULL, GL_DYNAMIC_DRAW );
+    glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(cuboidPoints), cuboidPoints );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), sizeof(cuboidColors), cuboidColors );
+
     glEnableVertexAttribArray( vPosition );
     glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
 			   BUFFER_OFFSET(0) );
 
-    GLuint vColor = glGetAttribLocation( program, "vColor" );
     glEnableVertexAttribArray( vColor );
     glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
-			   BUFFER_OFFSET(sizeof(points)) );
+			   BUFFER_OFFSET(sizeof(cuboidPoints)) );
+}
 
-    ChosenColor = glGetUniformLocation(program, "ChosenColor");
-    ModelView = glGetUniformLocation( program, "ModelView" );
-    Projection = glGetUniformLocation( program, "Projection" );
+void init_sphere_quad()
+{
+    colorcube();
+    
+    // Create a vertex array object
+    glGenVertexArrays( 1, &sphere_quad_vao );
+    glBindVertexArray( sphere_quad_vao );
 
-    glEnable( GL_DEPTH );
+    // Create and initialize a buffer object
+    GLuint buffer;
+    glGenBuffers( 1, &buffer );
+    glBindBuffer( GL_ARRAY_BUFFER, buffer );
+
+    glBufferData( GL_ARRAY_BUFFER, 
+        sizeof(sphereQuadPoints) + sizeof(sphereQuadColors),
+        NULL, GL_DYNAMIC_DRAW );
+    glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(sphereQuadPoints), sphereQuadPoints );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(sphereQuadPoints), sizeof(sphereQuadColors), sphereQuadColors );
+
+    glEnableVertexAttribArray( vPosition );
+    glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
+               BUFFER_OFFSET(0) );
+
+    glEnableVertexAttribArray( vColor );
+    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
+               BUFFER_OFFSET(sizeof(sphereQuadPoints)) );
+}
+
+void init_sphere_fan()
+{
+    colorcube();
+    
+    // Create a vertex array object
+    glGenVertexArrays( 1, &sphere_fan_vao );
+    glBindVertexArray( sphere_fan_vao );
+
+    // Create and initialize a buffer object
+    GLuint buffer;
+    glGenBuffers( 1, &buffer );
+    glBindBuffer( GL_ARRAY_BUFFER, buffer );
+
+    glBufferData( GL_ARRAY_BUFFER, 
+        sizeof(sphereFanPoints) + sizeof(sphereFanColors),
+        NULL, GL_DYNAMIC_DRAW );
+    glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(sphereFanPoints), sphereFanPoints );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(sphereFanPoints), sizeof(sphereFanColors), sphereFanColors );
+
+    glEnableVertexAttribArray( vPosition );
+    glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
+               BUFFER_OFFSET(0) );
+
+    glEnableVertexAttribArray( vColor );
+    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
+               BUFFER_OFFSET(sizeof(sphereFanPoints)) );
+}
+
+void init(){
+    init_cuboid();
+
+    compute_sphere();
+    init_sphere_quad();
+    init_sphere_fan();
+
+    glEnable( GL_DEPTH_TEST );
+    glDepthFunc(GL_LESS);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
-    glClearColor( 1.0, 1.0, 1.0, 1.0 ); 
+    glClearColor( 0.0, 1.0, 1.0, 1.0 ); 
 }
 
 //----------------------------------------------------------------------------
 
-void
-mouse( int button, int state, int x, int y )
+void mouse( int button, int state, int x, int y )
 {
 
     if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN ) {
-	// Incrase the joint angle
-	Theta[Axis] += 5.0;
-	if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
+    	// Incrase the joint angle
+    	Theta[Axis] += 5.0;
+    	if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
     }
 
     if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN ) {
-	// Decrase the joint angle
-	Theta[Axis] -= 5.0;
-	if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
+    	// Decrase the joint angle
+    	Theta[Axis] -= 5.0;
+    	if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
     }
-
     glutPostRedisplay();
 }
 
 //----------------------------------------------------------------------------
 
-void
-menu( int option )
+void menu( int option )
 {
     if ( option == Quit ) {
 	exit( EXIT_SUCCESS );
@@ -245,8 +371,7 @@ menu( int option )
 
 //----------------------------------------------------------------------------
 
-void
-reshape( int width, int height )
+void reshape( int width, int height )
 {
     glViewport( 0, 0, width, height );
 
@@ -273,8 +398,7 @@ reshape( int width, int height )
 
 //----------------------------------------------------------------------------
 
-void
-keyboard( unsigned char key, int x, int y )
+void keyboard( unsigned char key, int x, int y )
 {
     switch( key ) {
 	case 033: // Escape Key
@@ -286,8 +410,7 @@ keyboard( unsigned char key, int x, int y )
 
 //----------------------------------------------------------------------------
 
-int
-main( int argc, char **argv )
+int main( int argc, char **argv )
 {
     glutInit( &argc, argv );
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
@@ -299,6 +422,14 @@ main( int argc, char **argv )
     // Iff you get a segmentation error at line 34, please uncomment the line below
     glewExperimental = GL_TRUE; 
     glewInit();
+
+    // Load shaders and use the resulting shader program
+    program = InitShader( "vshader81.glsl", "fshader81.glsl" );
+    glUseProgram( program );
+    vPosition = glGetAttribLocation( program, "vPosition" );
+    vColor = glGetAttribLocation( program, "vColor" );
+    ModelView = glGetUniformLocation( program, "ModelView" );
+    Projection = glGetUniformLocation( program, "Projection" );
     
     init();
 
