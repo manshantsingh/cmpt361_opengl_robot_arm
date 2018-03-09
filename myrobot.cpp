@@ -245,10 +245,10 @@ void display( void )
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
     if(isTopView){
-        model_view = RotateX(90) * Scale(0.8, 0.8, 0.8);
+        model_view = RotateX(90);
     }
     else{
-        model_view = Translate(0.0, BASE_HEIGHT, 0.0) * Scale(0.8, 0.8, 0.8);
+        model_view = mat4(1.0);
     }
 
     if(currentAnimationState == AT_OLD){
@@ -259,10 +259,6 @@ void display( void )
         model_view *= Translate(newPosition);
         draw_sphere();
     }
-    // mat4 camera = LookAt(vec4(0, 0, 7, 1), vec4(0, 0, 0, 1), vec4(0, 1, 0, 1));
-    // model_view = Perspective(90, ((float)WINDOWS_X)/WINDOWS_Y, -1, 50) * camera;
-    // draw_sphere();
-    
 
     // Accumulate ModelView Matrix as we traverse the tree
     model_view *= RotateY(Theta[Base] );
@@ -436,13 +432,13 @@ void mouse( int button, int state, int x, int y )
 
 void setProjectionMatrix(){
 
-    GLfloat  left = -10.0, right = 10.0;
-    GLfloat  bottom = -5.0, top = 15.0;
-    GLfloat  zNear = -10.0, zFar = 10.0;
+    GLfloat  left = -15.0, right = 15.0;
+    GLfloat  bottom = -10.0, top = 20.0;
+    GLfloat  zNear = -15.0, zFar = 15.0;
 
     if ( isTopView ) {
-        bottom = -10.0;
-        top    =  10.0;
+        bottom = -15.0;
+        top    =  15.0;
     }
 
     if ( currentWindowAspect > 1.0 ) {
