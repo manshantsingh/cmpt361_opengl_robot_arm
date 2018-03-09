@@ -152,6 +152,10 @@ void compute_sphere(){
     }
 }
 
+vec3 compute_robot_rotation(point4 position){
+    //TODO: continue here msk
+}
+
 //----------------------------------------------------------------------------
 
 /* Define the three parts */
@@ -220,7 +224,7 @@ void lower_arm()
 
 //----------------------------------------------------------------------------
 
-void draw_sphere()
+void draw_sphere(mat4 m = mat4(1.0))
 {
     // TODO: msk change the bottom one
     mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ) *
@@ -228,7 +232,7 @@ void draw_sphere()
                  UPPER_ARM_WIDTH *0.5,
                  UPPER_ARM_WIDTH *0.5 ) );
 
-    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * m * instance );
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
     glBindVertexArray( sphere_quad_vao );
@@ -252,12 +256,10 @@ void display( void )
     }
 
     if(currentAnimationState == AT_OLD){
-        model_view *= Translate(oldPosition);
-        draw_sphere();
+        draw_sphere(Translate(oldPosition));
     }
     else if(currentAnimationState == AT_NEW || currentAnimationState == ALL_DONE){
-        model_view *= Translate(newPosition);
-        draw_sphere();
+        draw_sphere(Translate(newPosition));
     }
 
     // Accumulate ModelView Matrix as we traverse the tree
@@ -499,9 +501,9 @@ int main( int argc, char **argv )
 
     // TODO: msk change below. parse command line arguments here
     isTopView = true;
-    currentAnimationState = ATTACHED_TO_ARM;
-    oldPosition = point4(1,1,1,1);
-    newPosition = point4(2,2,2,1);
+    currentAnimationState = AT_OLD;
+    oldPosition = point4(5,5,5,1);
+    newPosition = point4(-5,5,-5,1);
 
     glutInit( &argc, argv );
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
