@@ -7,6 +7,9 @@ typedef Angel::vec4 color4;
 const int WINDOWS_X = 512;
 const int WINDOWS_Y = 512;
 
+const float UPDATE_INTERVAL = 10.0;
+const float ANGLE_INCREMENT_VALUE = 1;
+
 const int NumCuboidVertices = 36; //(6 faces)(2 triangles/face)(3 cuboidVertices/triangle)
 point4 cuboidPoints[NumCuboidVertices];
 color4 cuboidColors[NumCuboidVertices];
@@ -70,6 +73,7 @@ enum AnimationState{ AT_OLD, ATTACHED_TO_ARM, AT_NEW, ALL_DONE} currentAnimation
 point4 oldPosition, newPosition;
 bool isTopView;
 GLfloat currentWindowAspect;
+vec3 goalRotation;
 
 //----------------------------------------------------------------------------
 
@@ -152,8 +156,47 @@ void compute_sphere(){
     }
 }
 
-vec3 compute_robot_rotation(point4 position){
-    //TODO: continue here msk
+vec3 compute_robot_rotation(point4 p){
+    const float RadiansToDegrees = 180.0 / M_PI; // M_PI = 3.14159...
+
+    vec3 result;
+
+    // base direction
+    vec2 bi(-1, 0);
+    vec2 bf(p.x, p.z);
+    float bf_mag = bf.x*bf.x + bf.y*bf.y;
+    if(bf_mag != 0.0){
+        float angle = acos(dot(bi, bf)/(sqrt(bi.x*bi.x + bi.y*bi.y)*sqrt(bf_mag)));
+        float cross = bf.x * bi.y - bf.y * bi.x;
+        if(cross<0.0){
+            angle = -angle;
+        }
+        result.x = angle * RadiansToDegrees;
+    }
+    else result.x = 0;
+
+    float a = LOWER_ARM_HEIGHT;
+    float b = UPPER_ARM_HEIGHT + UPPER_ARM_WIDTH/2;
+
+    float diffY = p.y - BASE_HEIGHT;
+    float c = sqrt(bf_mag + diffY*diffY);
+
+    float oppC = acos((a*a + b*b - c*c)/(2*a*b)) * RadiansToDegrees;
+    float oppB = acos((a*a + c*c - b*b)/(2*a*c)) * RadiansToDegrees;
+    float bottomAngle = asin(diffY/c) * RadiansToDegrees;
+
+    result.y = 90 - (bottomAngle + oppB);
+    result.z = 180 - oppC;
+
+    // Theta[Base] = result.x;
+    // Theta[LowerArm] = result.y;
+    // Theta[UpperArm] = result.z;
+    // std::cout<<"oopB: "<<oppB<<",\tbottomAngle: "<<bottomAngle<<"\n";
+
+    printf("bf_mag: %f\ndiffY: %f\na: %f\nb: %f\nc: %f\noppC: %f\noppB: %f\nbottomAngle: %f\n",
+        bf_mag, diffY, a, b, c, oppC, oppB, bottomAngle);
+    for(auto x: Theta) std::cout<<x<<'\t'; std::cout<<std::endl;
+    return result;
 }
 
 //----------------------------------------------------------------------------
@@ -224,15 +267,15 @@ void lower_arm()
 
 //----------------------------------------------------------------------------
 
-void draw_sphere(mat4 m = mat4(1.0))
+void draw_sphere(mat4 m = Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ))
 {
     // TODO: msk change the bottom one
-    mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ) *
+    mat4 instance = ( m *
               Scale( UPPER_ARM_WIDTH *0.5,
                  UPPER_ARM_WIDTH *0.5,
                  UPPER_ARM_WIDTH *0.5 ) );
 
-    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * m * instance );
+    glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
     glBindVertexArray( sphere_quad_vao );
@@ -428,6 +471,7 @@ void mouse( int button, int state, int x, int y )
     	if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
     }
     glutPostRedisplay();
+    for(auto x: Theta) std::cout<<x<<'\t'; std::cout<<std::endl;
 }
 
 //----------------------------------------------------------------------------
@@ -466,10 +510,11 @@ void menu( int option )
     else if(option == ChangeView){
         isTopView = !isTopView;
         setProjectionMatrix();
+        glutPostRedisplay();
     }
     else {
         printf("%i\n",option);
-	Axis = option;
+        Axis = option;
     }
 }
 
@@ -488,10 +533,58 @@ void keyboard( unsigned char key, int x, int y )
 {
     switch( key ) {
 	case 033: // Escape Key
-	case 'q': case 'Q':
+	case 'q':
+    case 'Q':
 	    exit( EXIT_SUCCESS );
 	    break;
+    case '/':
+    case '0':
+    case '1':
+    case '2':
+        menu(key - ((int)'0'));
+        break;
     }
+}
+
+//----------------------------------------------------------------------------
+
+bool axisReached(int axis, float val){
+    // printf("doing axis %d with val %f\t\n", axis, val);
+    float old = Theta[axis];
+    float diff = val - old;
+    if(abs(diff) < ANGLE_INCREMENT_VALUE){
+        Theta[axis] = val;
+        return true;
+    }
+    if(diff > 0.0) Theta[axis] += ANGLE_INCREMENT_VALUE;
+    else Theta[axis] -= ANGLE_INCREMENT_VALUE;
+    return false;
+}
+
+void update(int){
+    int result = axisReached(Base, goalRotation.x)
+                    & axisReached(LowerArm, goalRotation.y)
+                    & axisReached(UpperArm, goalRotation.z);
+
+    glutPostRedisplay();
+
+    if (result!=0){
+        switch(currentAnimationState){
+            case AT_OLD:
+                goalRotation = compute_robot_rotation(newPosition);
+                currentAnimationState = ATTACHED_TO_ARM;
+                break;
+            case ATTACHED_TO_ARM:
+                goalRotation = vec3(0,0,0);
+                currentAnimationState = AT_NEW;
+                break;
+            case AT_NEW:
+                currentAnimationState = ALL_DONE;
+                return;
+        }
+    }
+    // printf("gets here\n");
+    glutTimerFunc(UPDATE_INTERVAL, update, 0);
 }
 
 //----------------------------------------------------------------------------
@@ -502,8 +595,9 @@ int main( int argc, char **argv )
     // TODO: msk change below. parse command line arguments here
     isTopView = true;
     currentAnimationState = AT_OLD;
-    oldPosition = point4(5,5,5,1);
-    newPosition = point4(-5,5,-5,1);
+    oldPosition = point4(-5,5,-5,1);
+    newPosition = point4(5,5,0,1);
+    goalRotation = compute_robot_rotation(oldPosition);
 
     glutInit( &argc, argv );
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
@@ -539,6 +633,8 @@ int main( int argc, char **argv )
     glutAddMenuEntry( "upper arm", UpperArm );
     glutAddMenuEntry( "quit", Quit );
     glutAttachMenu( GLUT_MIDDLE_BUTTON );
+
+    glutTimerFunc(UPDATE_INTERVAL, update, 0);
 
     glutMainLoop();
     return 0;
