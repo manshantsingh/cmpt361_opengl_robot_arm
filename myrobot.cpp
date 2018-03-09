@@ -4,6 +4,9 @@
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
 
+const int WINDOWS_X = 512;
+const int WINDOWS_Y = 512;
+
 const int NumCuboidVertices = 36; //(6 faces)(2 triangles/face)(3 cuboidVertices/triangle)
 point4 cuboidPoints[NumCuboidVertices];
 color4 cuboidColors[NumCuboidVertices];
@@ -63,6 +66,8 @@ GLfloat  Theta[NumAngles] = { 0.0 };
 // Menu option values
 const int  Quit = 4;
 
+enum AnimationState{ AT_OLD, ATTACHED_TO_ARM, AT_NEW, ALL_DONE} currentAnimationState;
+point4 oldPosition, newPosition;
 
 //----------------------------------------------------------------------------
 
@@ -196,9 +201,9 @@ void draw_sphere()
 {
     // TODO: msk change the bottom one
     mat4 instance = ( Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ) *
-              Scale( UPPER_ARM_WIDTH,
-                 UPPER_ARM_WIDTH,
-                 UPPER_ARM_WIDTH ) );
+              Scale( UPPER_ARM_WIDTH *0.5,
+                 UPPER_ARM_WIDTH *0.5,
+                 UPPER_ARM_WIDTH *0.5 ) );
 
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
 
@@ -215,8 +220,19 @@ void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
-    model_view = mat4( 1.0 ) * RotateY(Theta[Base] );
-    draw_sphere();
+    if(currentAnimationState == AT_OLD){
+        model_view = Translate(oldPosition);
+        draw_sphere();
+    }
+    else if(currentAnimationState == AT_NEW || currentAnimationState == ALL_DONE){
+        model_view = Translate(newPosition);
+        draw_sphere();
+    }
+
+    model_view = mat4( 1.0 );
+    // mat4 camera = LookAt(vec4(0, 0, 7, 1), vec4(0, 0, 0, 1), vec4(0, 1, 0, 1));
+    // model_view = Perspective(90, ((float)WINDOWS_X)/WINDOWS_Y, -1, 50) * camera;
+    // draw_sphere();
     
     glBindVertexArray( cuboid_vao );
 
@@ -231,6 +247,12 @@ void display( void )
     model_view *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
 		    RotateZ(Theta[UpperArm]) );
     upper_arm();
+
+    if(currentAnimationState == ATTACHED_TO_ARM){
+        // transform
+        model_view *= Translate(0.0, UPPER_ARM_HEIGHT, 0.0);
+        draw_sphere();
+    }
 
     glutSwapBuffers();
 }
@@ -268,9 +290,7 @@ void init_cuboid()
 }
 
 void init_sphere_quad()
-{
-    colorcube();
-    
+{    
     // Create a vertex array object
     glGenVertexArrays( 1, &sphere_quad_vao );
     glBindVertexArray( sphere_quad_vao );
@@ -297,8 +317,6 @@ void init_sphere_quad()
 
 void init_sphere_fan()
 {
-    colorcube();
-    
     // Create a vertex array object
     glGenVertexArrays( 1, &sphere_fan_vao );
     glBindVertexArray( sphere_fan_vao );
@@ -412,9 +430,15 @@ void keyboard( unsigned char key, int x, int y )
 
 int main( int argc, char **argv )
 {
+
+    // TODO: msk change below. parse command line arguments here
+    currentAnimationState = ATTACHED_TO_ARM;
+    oldPosition = point4(1,1,1,1);
+    newPosition = point4(2,2,2,1);
+
     glutInit( &argc, argv );
     glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH );
-    glutInitWindowSize( 512, 512 );
+    glutInitWindowSize( WINDOWS_X, WINDOWS_Y );
     glutInitContextVersion( 3, 2 );
     glutInitContextProfile( GLUT_CORE_PROFILE );
     glutCreateWindow( "myrobot" );
@@ -445,7 +469,6 @@ int main( int argc, char **argv )
     glutAddMenuEntry( "upper arm", UpperArm );
     glutAddMenuEntry( "quit", Quit );
     glutAttachMenu( GLUT_MIDDLE_BUTTON );
-
 
     glutMainLoop();
     return 0;
