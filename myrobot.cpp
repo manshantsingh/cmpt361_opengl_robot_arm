@@ -1,6 +1,8 @@
 
 #include "Angel.h"
 
+#include <string>
+
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
 
@@ -193,9 +195,9 @@ vec3 compute_robot_rotation(point4 p){
     // Theta[UpperArm] = result.z;
     // std::cout<<"oopB: "<<oppB<<",\tbottomAngle: "<<bottomAngle<<"\n";
 
-    printf("bf_mag: %f\ndiffY: %f\na: %f\nb: %f\nc: %f\noppC: %f\noppB: %f\nbottomAngle: %f\n",
-        bf_mag, diffY, a, b, c, oppC, oppB, bottomAngle);
-    for(auto x: Theta) std::cout<<x<<'\t'; std::cout<<std::endl;
+    // printf("bf_mag: %f\ndiffY: %f\na: %f\nb: %f\nc: %f\noppC: %f\noppB: %f\nbottomAngle: %f\n",
+    //     bf_mag, diffY, a, b, c, oppC, oppB, bottomAngle);
+    // for(auto x: Theta) std::cout<<x<<'\t'; std::cout<<std::endl;
     return result;
 }
 
@@ -591,12 +593,31 @@ void update(int){
 
 int main( int argc, char **argv )
 {
+    if(argc < 8){
+        printf("Not enough command line arguments provided.\nAborting.\n");
+        return 0;
+    }
+    // printf("\n\n\nnum args: %d\n\n\n", argc);
+    // for(int i=0;i<argc; i++){
+    //     printf("args %d: %s\n\n", i, argv[i]);
+    // }
 
-    // TODO: msk change below. parse command line arguments here
-    isTopView = true;
+    oldPosition = point4(atof(argv[1]), atof(argv[2]), atof(argv[3]), 1);
+    newPosition = point4(atof(argv[4]), atof(argv[5]), atof(argv[6]), 1);
+
+    std::string viewSpecified = argv[7];
+    if(viewSpecified == "-tv"){
+        isTopView = true;
+    }
+    else if(viewSpecified == "-sv"){
+        isTopView = false;
+    }
+    else{
+        printf("Unknown view specified \"%s\".\nAborting.\n", argv[7]);
+        return 0;
+    }
+
     currentAnimationState = AT_OLD;
-    oldPosition = point4(-5,5,-5,1);
-    newPosition = point4(5,5,0,1);
     goalRotation = compute_robot_rotation(oldPosition);
 
     glutInit( &argc, argv );
