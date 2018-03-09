@@ -47,15 +47,14 @@ color4 vertex_colors[8] = {
 const GLfloat BASE_HEIGHT      = 2.0;
 const GLfloat BASE_WIDTH       = 5.0;
 const GLfloat LOWER_ARM_HEIGHT = 5.0;
-const GLfloat LOWER_ARM_WIDTH  = 0.5;
+const GLfloat LOWER_ARM_WIDTH  = 1.0;
 const GLfloat UPPER_ARM_HEIGHT = 5.0;
-const GLfloat UPPER_ARM_WIDTH  = 0.5;
+const GLfloat UPPER_ARM_WIDTH  = 1.0;
 
 // Shader transformation matrices
 mat4  model_view;
-// GLuint ChosenColor;
 
-GLuint program, cuboid_vao, sphere_fan_vao, sphere_quad_vao;
+GLuint program, cuboid_vao, cuboid_outline_vao, sphere_fan_vao, sphere_quad_vao;
 GLuint vPosition, vColor, ModelView, Projection;
 
 // Array of rotation angles (in degrees) for each rotation axis
@@ -65,9 +64,12 @@ GLfloat  Theta[NumAngles] = { 0.0 };
 
 // Menu option values
 const int  Quit = 4;
+const int ChangeView = -1;
 
 enum AnimationState{ AT_OLD, ATTACHED_TO_ARM, AT_NEW, ALL_DONE} currentAnimationState;
 point4 oldPosition, newPosition;
+bool isTopView;
+GLfloat currentWindowAspect;
 
 //----------------------------------------------------------------------------
 
@@ -166,6 +168,13 @@ void base()
 			BASE_WIDTH ) );
 
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+
+    glBindVertexArray( cuboid_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
+
+    glBindVertexArray( cuboid_outline_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
@@ -179,6 +188,13 @@ void upper_arm()
 			     UPPER_ARM_WIDTH ) );
 
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+
+    glBindVertexArray( cuboid_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
+
+    glBindVertexArray( cuboid_outline_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
@@ -192,6 +208,13 @@ void lower_arm()
 			     LOWER_ARM_WIDTH ) );
 
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+
+    glBindVertexArray( cuboid_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
+
+    glBindVertexArray( cuboid_outline_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
@@ -206,6 +229,7 @@ void draw_sphere()
                  UPPER_ARM_WIDTH *0.5 ) );
 
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
     glBindVertexArray( sphere_quad_vao );
     glDrawArrays( GL_TRIANGLE_STRIP, 0, NumSphereQuadVertices );
@@ -220,21 +244,25 @@ void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
+    if(isTopView){
+        model_view = RotateX(90) * Scale(0.8, 0.8, 0.8);
+    }
+    else{
+        model_view = Translate(0.0, BASE_HEIGHT, 0.0) * Scale(0.8, 0.8, 0.8);
+    }
+
     if(currentAnimationState == AT_OLD){
-        model_view = Translate(oldPosition);
+        model_view *= Translate(oldPosition);
         draw_sphere();
     }
     else if(currentAnimationState == AT_NEW || currentAnimationState == ALL_DONE){
-        model_view = Translate(newPosition);
+        model_view *= Translate(newPosition);
         draw_sphere();
     }
-
-    model_view = mat4( 1.0 );
     // mat4 camera = LookAt(vec4(0, 0, 7, 1), vec4(0, 0, 0, 1), vec4(0, 1, 0, 1));
     // model_view = Perspective(90, ((float)WINDOWS_X)/WINDOWS_Y, -1, 50) * camera;
     // draw_sphere();
     
-    glBindVertexArray( cuboid_vao );
 
     // Accumulate ModelView Matrix as we traverse the tree
     model_view *= RotateY(Theta[Base] );
@@ -274,7 +302,7 @@ void init_cuboid()
 
     // glBufferData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), cuboidPoints, GL_DYNAMIC_DRAW );
 
-    glBufferData( GL_ARRAY_BUFFER, 
+    glBufferData( GL_ARRAY_BUFFER,
         sizeof(cuboidPoints) + sizeof(cuboidColors),
         NULL, GL_DYNAMIC_DRAW );
     glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(cuboidPoints), cuboidPoints );
@@ -287,6 +315,37 @@ void init_cuboid()
     glEnableVertexAttribArray( vColor );
     glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
 			   BUFFER_OFFSET(sizeof(cuboidPoints)) );
+}
+
+void init_cuboid_outline()
+{
+    // Create a vertex array object
+    glGenVertexArrays( 1, &cuboid_outline_vao );
+    glBindVertexArray( cuboid_outline_vao );
+
+    color4 colors[NumCuboidVertices];
+    for(auto& x: colors) x=vertex_colors[0];
+
+    // Create and initialize a buffer object
+    GLuint buffer;
+    glGenBuffers( 1, &buffer );
+    glBindBuffer( GL_ARRAY_BUFFER, buffer );
+
+    // glBufferData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), cuboidPoints, GL_DYNAMIC_DRAW );
+
+    glBufferData( GL_ARRAY_BUFFER, 
+        sizeof(cuboidPoints) + sizeof(colors),
+        NULL, GL_DYNAMIC_DRAW );
+    glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(cuboidPoints), cuboidPoints );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), sizeof(colors), colors );
+
+    glEnableVertexAttribArray( vPosition );
+    glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
+               BUFFER_OFFSET(0) );
+
+    glEnableVertexAttribArray( vColor );
+    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
+               BUFFER_OFFSET(sizeof(cuboidPoints)) );
 }
 
 void init_sphere_quad()
@@ -343,14 +402,13 @@ void init_sphere_fan()
 
 void init(){
     init_cuboid();
-
+    init_cuboid_outline();
     compute_sphere();
     init_sphere_quad();
     init_sphere_fan();
 
     glEnable( GL_DEPTH_TEST );
     glDepthFunc(GL_LESS);
-    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
     glClearColor( 0.0, 1.0, 1.0, 1.0 ); 
 }
@@ -376,10 +434,40 @@ void mouse( int button, int state, int x, int y )
 
 //----------------------------------------------------------------------------
 
+void setProjectionMatrix(){
+
+    GLfloat  left = -10.0, right = 10.0;
+    GLfloat  bottom = -5.0, top = 15.0;
+    GLfloat  zNear = -10.0, zFar = 10.0;
+
+    if ( isTopView ) {
+        bottom = -10.0;
+        top    =  10.0;
+    }
+
+    if ( currentWindowAspect > 1.0 ) {
+        left *= currentWindowAspect;
+        right *= currentWindowAspect;
+    }
+    else {
+        bottom /= currentWindowAspect;
+        top /= currentWindowAspect;
+    }
+
+    mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
+    glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
+
+    model_view = mat4( 1.0 );  // An Identity matrix
+}
+
 void menu( int option )
 {
     if ( option == Quit ) {
-	exit( EXIT_SUCCESS );
+	   exit( EXIT_SUCCESS );
+    }
+    else if(option == ChangeView){
+        isTopView = !isTopView;
+        setProjectionMatrix();
     }
     else {
         printf("%i\n",option);
@@ -392,26 +480,8 @@ void menu( int option )
 void reshape( int width, int height )
 {
     glViewport( 0, 0, width, height );
-
-    GLfloat  left = -10.0, right = 10.0;
-    GLfloat  bottom = -5.0, top = 15.0;
-    GLfloat  zNear = -10.0, zFar = 10.0;
-
-    GLfloat aspect = GLfloat(width)/height;
-
-    if ( aspect > 1.0 ) {
-	left *= aspect;
-	right *= aspect;
-    }
-    else {
-	bottom /= aspect;
-	top /= aspect;
-    }
-
-    mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
-    glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
-
-    model_view = mat4( 1.0 );  // An Identity matrix
+    currentWindowAspect = GLfloat(width)/height;
+    setProjectionMatrix();
 }
 
 //----------------------------------------------------------------------------
@@ -432,6 +502,7 @@ int main( int argc, char **argv )
 {
 
     // TODO: msk change below. parse command line arguments here
+    isTopView = true;
     currentAnimationState = ATTACHED_TO_ARM;
     oldPosition = point4(1,1,1,1);
     newPosition = point4(2,2,2,1);
@@ -464,6 +535,7 @@ int main( int argc, char **argv )
 
     glutCreateMenu( menu );
     // Set the menu values to the relevant rotation axis values (or Quit)
+    glutAddMenuEntry( "Change View", ChangeView );
     glutAddMenuEntry( "base", Base );
     glutAddMenuEntry( "lower arm", LowerArm );
     glutAddMenuEntry( "upper arm", UpperArm );
