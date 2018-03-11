@@ -272,19 +272,19 @@ void lower_arm()
 void draw_sphere(mat4 m = Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ))
 {
     // TODO: msk change the bottom one
-    mat4 instance = ( m *
-              Scale( UPPER_ARM_WIDTH *0.5,
-                 UPPER_ARM_WIDTH *0.5,
-                 UPPER_ARM_WIDTH *0.5 ) );
+    mat4 instance = ( m * Scale(3,3,3)
+              );
 
     glUniformMatrix4fv( ModelView, 1, GL_TRUE, model_view * instance );
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
-    glBindVertexArray( sphere_quad_vao );
-    glDrawArrays( GL_TRIANGLE_STRIP, 0, NumSphereQuadVertices );
+    // glBindVertexArray( sphere_quad_vao );
+    // glDrawArrays( GL_LINE_STRIP, 0, NumSphereQuadVertices );
 
     glBindVertexArray( sphere_fan_vao );
-    glDrawArrays( GL_TRIANGLE_FAN, 0, NumSphereFanVertices );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+    glDrawArrays( GL_TRIANGLE_FAN, 0, NumSphereFanVertices/2 );
+    glDrawArrays( GL_TRIANGLE_FAN, NumSphereFanVertices/2, NumSphereFanVertices/2 );
 }
 
 //----------------------------------------------------------------------------
@@ -309,15 +309,15 @@ void display( void )
 
     // Accumulate ModelView Matrix as we traverse the tree
     model_view *= RotateY(Theta[Base] );
-    base();
+    // base();
 
     model_view *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
 		    RotateZ(Theta[LowerArm]) );
-    lower_arm();
+    // lower_arm();
 
     model_view *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
 		    RotateZ(Theta[UpperArm]) );
-    upper_arm();
+    // upper_arm();
 
     if(currentAnimationState == ATTACHED_TO_ARM){
         // transform
@@ -593,29 +593,31 @@ void update(int){
 
 int main( int argc, char **argv )
 {
-    if(argc < 8){
-        printf("Not enough command line arguments provided.\nAborting.\n");
-        return 0;
-    }
+    // if(argc < 8){
+    //     printf("Not enough command line arguments provided.\nAborting.\n");
+    //     return 0;
+    // }
     // printf("\n\n\nnum args: %d\n\n\n", argc);
     // for(int i=0;i<argc; i++){
     //     printf("args %d: %s\n\n", i, argv[i]);
     // }
+    oldPosition = point4(0,0,0,1);
+    newPosition = oldPosition;
+    isTopView = true;
+    // oldPosition = point4(atof(argv[1]), atof(argv[2]), atof(argv[3]), 1);
+    // newPosition = point4(atof(argv[4]), atof(argv[5]), atof(argv[6]), 1);
 
-    oldPosition = point4(atof(argv[1]), atof(argv[2]), atof(argv[3]), 1);
-    newPosition = point4(atof(argv[4]), atof(argv[5]), atof(argv[6]), 1);
-
-    std::string viewSpecified = argv[7];
-    if(viewSpecified == "-tv"){
-        isTopView = true;
-    }
-    else if(viewSpecified == "-sv"){
-        isTopView = false;
-    }
-    else{
-        printf("Unknown view specified \"%s\".\nAborting.\n", argv[7]);
-        return 0;
-    }
+    // std::string viewSpecified = argv[7];
+    // if(viewSpecified == "-tv"){
+    //     isTopView = true;
+    // }
+    // else if(viewSpecified == "-sv"){
+    //     isTopView = false;
+    // }
+    // else{
+    //     printf("Unknown view specified \"%s\".\nAborting.\n", argv[7]);
+    //     return 0;
+    // }
 
     currentAnimationState = AT_OLD;
     goalRotation = compute_robot_rotation(oldPosition);

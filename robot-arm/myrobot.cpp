@@ -284,7 +284,8 @@ void draw_sphere(mat4 m = Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ))
     glDrawArrays( GL_TRIANGLE_STRIP, 0, NumSphereQuadVertices );
 
     glBindVertexArray( sphere_fan_vao );
-    glDrawArrays( GL_TRIANGLE_FAN, 0, NumSphereFanVertices );
+    glDrawArrays( GL_TRIANGLE_FAN, 0, NumSphereFanVertices/2 );
+    glDrawArrays( GL_TRIANGLE_FAN, NumSphereFanVertices/2, NumSphereFanVertices/2 );
 }
 
 //----------------------------------------------------------------------------
