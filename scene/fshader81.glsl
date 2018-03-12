@@ -7,7 +7,7 @@ in vec3 vertPos;
 out vec4 fColor;
 
 
-const vec3 lightPos = vec3(0,0.0,-5.0);
+const vec3 lightPos = vec3(0, 0, -5.0);
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 const float lightPower = 40.0;
 
@@ -16,7 +16,7 @@ const vec3 lightDiffuseColor = vec3(1.0, 1.0, 1.0);
 const vec3 lightSpecColor = vec3(1.0, 1.0, 1.0);
 
 const vec3 ambientColor = vec3(0.1, 0.0, 0.0);
-const vec3 diffuseColor = vec3(0.5, 0.0, 0.0);
+// const vec3 diffuseColor = vec3(0.5, 0.0, 0.0);
 const vec3 specColor = vec3(1.0, 1.0, 1.0);
 
 const float shininess = 16.0;
@@ -79,7 +79,8 @@ void main()
     // fColor = color + Iamb + Idiff + Ispec;
 
 
-
+    //msk
+  vec3 diffuseColor = vec3(color);
   vec3 normal = normalize(normalInterp);
   vec3 lightDir = lightPos - vertPos;
   float distance = length(lightDir);
@@ -106,10 +107,7 @@ void main()
     //   specular = pow(specAngle, shininess/4.0);
     // }
   }
-  // vec3 colorLinear = ambientColor +
-  //                    diffuseColor * lambertian * lightColor * lightPower / distance +
-  //                    specColor * specular * lightColor * lightPower / distance;
-  vec3 colorLinear = ambientColor + vec3(color) +
+  vec3 colorLinear = ambientColor +
                      diffuseColor * lambertian * lightColor * lightPower / distance +
                      specColor * specular * lightColor * lightPower / distance;
   // apply gamma correction (assume ambientColor, diffuseColor and specColor
