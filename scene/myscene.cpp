@@ -39,15 +39,25 @@ point4 cuboidVertices[8] = {
 };
 
 // RGBA olors
+// color4 vertex_colors[8] = {
+//     color4( 0.0, 0.0, 0.0, 1.0 ),  // black
+//     color4( 1.0, 0.0, 0.0, 1.0 ),  // red
+//     color4( 1.0, 1.0, 0.0, 1.0 ),  // yellow
+//     color4( 0.0, 1.0, 0.0, 1.0 ),  // green
+//     color4( 0.0, 0.0, 1.0, 1.0 ),  // blue
+//     color4( 1.0, 0.0, 1.0, 1.0 ),  // magenta
+//     color4( 1.0, 1.0, 1.0, 1.0 ),  // white
+//     color4( 0.0, 1.0, 1.0, 1.0 )   // cyan
+// };
 color4 vertex_colors[8] = {
-    color4( 0.0, 0.0, 0.0, 1.0 ),  // black
-    color4( 1.0, 0.0, 0.0, 1.0 ),  // red
-    color4( 1.0, 1.0, 0.0, 1.0 ),  // yellow
-    color4( 0.0, 1.0, 0.0, 1.0 ),  // green
-    color4( 0.0, 0.0, 1.0, 1.0 ),  // blue
-    color4( 1.0, 0.0, 1.0, 1.0 ),  // magenta
-    color4( 1.0, 1.0, 1.0, 1.0 ),  // white
-    color4( 0.0, 1.0, 1.0, 1.0 )   // cyan
+    color4( 0.0, 0.0, 0.0, 0.5 ),  // black
+    color4( 0.5, 0.0, 0.0, 0.5 ),  // red
+    color4( 0.5, 0.5, 0.0, 0.5 ),  // yellow
+    color4( 0.0, 0.5, 0.0, 0.5 ),  // green
+    color4( 0.0, 0.0, 0.5, 0.5 ),  // blue
+    color4( 0.5, 0.0, 0.5, 0.5 ),  // magenta
+    color4( 0.5, 0.5, 0.5, 0.5 ),  // white
+    color4( 0.0, 0.5, 0.5, 0.5 )   // cyan
 };
 
 
@@ -92,9 +102,11 @@ void setShaderMatrixes(mat4 tempMV){
 
 void quad( int a, int b, int c, int d )
 {
-    point4 edge1 = b-a;
-    point4 edge2 = c-a;
-    point4 quadNormal = point4(normalize(cross(edge1, edge2)));
+    point4 edge1 = cuboidVertices[a]-cuboidVertices[b];
+    point4 edge2 = cuboidVertices[c]-cuboidVertices[b];
+    point4 quadNormal = normalize(point4(cross(edge1, edge2), 1));
+        std::cout<<"edge1: "<<edge1<<"\t\tedge2: "<<edge2
+                <<"\t\tcomputation: "<<quadNormal<<std::endl;
     for(int i=0;i<6;i++){
         cuboidNormals[Index+i] = quadNormal;
     }
@@ -507,25 +519,27 @@ void init(){
 
 void setProjectionMatrix(){
 
-    GLfloat  left = -15.0, right = 15.0;
-    GLfloat  bottom = -10.0, top = 20.0;
-    GLfloat  zNear = -15.0, zFar = 15.0;
+    // GLfloat  left = -15.0, right = 15.0;
+    // GLfloat  bottom = -10.0, top = 20.0;
+    // GLfloat  zNear = -15.0, zFar = 15.0;
 
-    if ( isTopView ) {
-        bottom = -15.0;
-        top    =  15.0;
-    }
+    // if ( isTopView ) {
+    //     bottom = -15.0;
+    //     top    =  15.0;
+    // }
 
-    if ( currentWindowAspect > 1.0 ) {
-        left *= currentWindowAspect;
-        right *= currentWindowAspect;
-    }
-    else {
-        bottom /= currentWindowAspect;
-        top /= currentWindowAspect;
-    }
+    // if ( currentWindowAspect > 1.0 ) {
+    //     left *= currentWindowAspect;
+    //     right *= currentWindowAspect;
+    // }
+    // else {
+    //     bottom /= currentWindowAspect;
+    //     top /= currentWindowAspect;
+    // }
 
-    mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
+    // mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
+    mat4 projection = Perspective( 100, WINDOWS_X/WINDOWS_Y, 1, 50);
+    projection *= LookAt(vec4(0,5,-15,1), vec4(0,0,1,0), vec4(0,1,0,0));
     glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
 
     model_view = mat4( 1.0 );  // An Identity matrix
@@ -630,7 +644,7 @@ int main( int argc, char **argv )
     // }
     oldPosition = point4(5,0,5,1);
     newPosition = oldPosition;
-    isTopView = true;
+    isTopView = false;
     // oldPosition = point4(atof(argv[1]), atof(argv[2]), atof(argv[3]), 1);
     // newPosition = point4(atof(argv[4]), atof(argv[5]), atof(argv[6]), 1);
 
