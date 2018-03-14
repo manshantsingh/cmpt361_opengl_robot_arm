@@ -1,8 +1,12 @@
 #version 150 
 
-in  vec4 color;
 in vec3 normalInterp;
 in vec3 vertPos;
+
+in vec3 ambientColor;
+in vec3 diffuseColor;
+in vec3 specColor;
+
 
 out vec4 fColor;
 
@@ -21,8 +25,8 @@ Light lights[NUM_LIGHTS];
 // lights[0].power = 10000.0;
 
 
-const vec3 ambientColor = vec3(0.1, 0.0, 0.0);
-const vec3 specColor = vec3(1.0, 1.0, 1.0);
+// const vec3 ambientColor = vec3(0.1, 0.0, 0.0);
+// const vec3 specColor = vec3(1.0, 1.0, 1.0);
 
 const float shininess = 16.0;
 const float screenGamma = 2.2; // Assume the monitor is calibrated to the sRGB color space
@@ -34,7 +38,7 @@ void main()
   lights[1] = Light(vec3(0, 50, 0), vec3(1.0, 1.0, 1.0), 50000.0);
 
     //msk
-  vec3 diffuseColor = vec3(color);
+  // vec3 diffuseColor = vec3(color);
   vec3 normal = normalize(normalInterp);
   vec3 colorLinear = ambientColor;
 

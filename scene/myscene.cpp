@@ -2,6 +2,9 @@
 #include "Angel.h"
 
 #include <string>
+#include <unordered_map>
+
+using namespace std;
 
 typedef Angel::vec4 point4;
 typedef Angel::vec4 color4;
@@ -23,6 +26,12 @@ const int NumSphereFanVertices = 40;
 point4 sphereFanPoints[NumSphereFanVertices];
 color4 sphereFanNormals[NumSphereFanVertices];
 
+struct material{
+    vec3 ambientColor, diffuseColor, specColor;
+    material(vec3 a, vec3 d, vec3 s): ambientColor(a), diffuseColor(d), specColor(s){}
+    material(){}
+};
+
 point4 cuboidVertices[8] = {
     point4( -0.5, -0.5,  0.5, 1.0 ),
     point4( -0.5,  0.5,  0.5, 1.0 ),
@@ -34,39 +43,29 @@ point4 cuboidVertices[8] = {
     point4(  0.5, -0.5, -0.5, 1.0 )
 };
 
-// RGBA olors
-// color4 vertex_colors[8] = {
-//     color4( 0.0, 0.0, 0.0, 1.0 ),  // black
-//     color4( 1.0, 0.0, 0.0, 1.0 ),  // red
-//     color4( 1.0, 1.0, 0.0, 1.0 ),  // yellow
-//     color4( 0.0, 1.0, 0.0, 1.0 ),  // green
-//     color4( 0.0, 0.0, 1.0, 1.0 ),  // blue
-//     color4( 1.0, 0.0, 1.0, 1.0 ),  // magenta
-//     color4( 1.0, 1.0, 1.0, 1.0 ),  // white
-//     color4( 0.0, 1.0, 1.0, 1.0 )   // cyan
-// };
-color4 vertex_colors[8] = {
-    color4( 0.0, 0.0, 0.0, 0.5 ),  // black
-    color4( 0.5, 0.0, 0.0, 0.5 ),  // red
-    color4( 0.5, 0.5, 0.0, 0.5 ),  // yellow
-    color4( 0.0, 0.5, 0.0, 0.5 ),  // green
-    color4( 0.0, 0.0, 0.5, 0.5 ),  // blue
-    color4( 0.5, 0.0, 0.5, 0.5 ),  // magenta
-    color4( 0.5, 0.5, 0.5, 0.5 ),  // white
-    color4( 0.0, 0.5, 0.5, 0.5 )   // cyan
+unordered_map<string, material> myMap{
+    { "grass",    {vec3(0,0,0), vec3(0,1,0), vec3(0,0,0)} },
+    { "road",     {vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)} }
 };
+
 
 // Shader transformation matrices
 mat4  model_view;
 
 GLfloat currentWindowAspect;
 GLuint program, cuboid_vao, cuboid_outline_vao, sphere_fan_vao, sphere_quad_vao;
-GLuint vPosition, vNormal, ModelView, Projection, NormalMatrix, TotalColor;
+GLuint vPosition, vNormal, ModelView, Projection, NormalMatrix,
+        AmbientColor, DiffuseColor, SpecColor;
 
 
 //----------------------------------------------------------------------------
 
-int Index = 0;
+void setMaterial(material m){
+
+    glUniform3fv( AmbientColor, 1, m.ambientColor );
+    glUniform3fv( DiffuseColor, 1, m.diffuseColor );
+    glUniform3fv( SpecColor, 1, m.specColor );
+}
 
 void setShaderMatrixes(mat4 tempMV){
     mat4 tempNM = transpose(inverse(tempMV));
@@ -90,6 +89,7 @@ point4 triangle_normal(point4 a, point4 b, point4 c){
     // else return normalize(point4(cross(b-a, a-c), 1));
 }
 
+int Index = 0;
 void quad( int a, int b, int c, int d, bool straight = true)
 {
     point4 quadNormal = triangle_normal(cuboidVertices[a], cuboidVertices[b], cuboidVertices[c]);
@@ -108,17 +108,6 @@ void quad( int a, int b, int c, int d, bool straight = true)
 void colorcube()
 {
     Index = 0;
-    // quad( 1, 0, 3, 2 , false);
-    // quad( 2, 3, 7, 6 );
-    // // quad( 2, 3, 7, 6 , mat4(RotateZ(90)));
-    // // quad( 2, 3, 7, 6 , mat4(RotateZ(180)));
-    // // quad( 2, 3, 7, 6 , mat4(RotateZ(270)));
-    // // quad( 2, 3, 7, 6 , mat4(RotateY(90)));
-    // // quad( 2, 3, 7, 6 , mat4(RotateY(270)));
-    // quad( 3, 0, 4, 7 );
-    // quad( 6, 5, 1, 2 );
-    // quad( 4, 5, 6, 7 );
-    // quad( 5, 4, 0, 1 );
     quad(4,5,7,6); //front
     quad(5,1,6,2); //top
     quad(0,4,3,7); //bottom
@@ -184,10 +173,10 @@ void compute_sphere(){
 
 
 
-void draw_cuboid(mat4 m, color4 selectedColor){
+void draw_cuboid(mat4 m, material objectMaterial){
 
     setShaderMatrixes( model_view * m );
-    glUniform4fv( TotalColor, 1, selectedColor );
+    setMaterial(objectMaterial);
 
     glBindVertexArray( cuboid_vao );
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
@@ -196,13 +185,13 @@ void draw_cuboid(mat4 m, color4 selectedColor){
 
 //----------------------------------------------------------------------------
 
-void draw_sphere(mat4 m, color4 selectedColor)
+void draw_sphere(mat4 m, material objectMaterial)
 {
     // TODO: msk change the bottom one
     mat4 instance = ( m * Scale(3,3,3));
 
     setShaderMatrixes( model_view * instance );
-    glUniform4fv( TotalColor, 1, selectedColor );
+    setMaterial(objectMaterial);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
     glBindVertexArray( sphere_quad_vao );
@@ -220,9 +209,12 @@ void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     model_view = mat4(1.0);
+    //hehe
+    // draw_sphere( Translate( 0, 3, 0 ) * Scale(1, 1, 1), color4(1, 0, 1, 1));
 
-    draw_cuboid( Translate( 0, 0, 0 ) * Scale(90, 1, 50), color4(0, 1, 0, 1));
-    draw_sphere( Translate( 0, 3, 0 ) * Scale(1, 1, 1), color4(1, 0, 1, 1));
+    draw_cuboid( Translate( 0, 0, 0 ) * Scale(90, 1, 50), myMap["grass"]);
+
+    draw_cuboid( Translate( 0, 0.1, 0 ) * Scale(20, 1, 50), myMap["road"]);
 
     glutSwapBuffers();
 }
@@ -266,7 +258,7 @@ void init_cuboid_outline()
     glBindVertexArray( cuboid_outline_vao );
 
     color4 colors[NumCuboidVertices];
-    for(auto& x: colors) x=vertex_colors[0];
+    for(auto& x: colors) x=color4(0,0,0,1);
 
     // Create and initialize a buffer object
     GLuint buffer;
@@ -410,7 +402,10 @@ int main( int argc, char **argv )
     ModelView = glGetUniformLocation( program, "ModelView" );
     Projection = glGetUniformLocation( program, "Projection" );
     NormalMatrix = glGetUniformLocation( program, "NormalMatrix" );
-    TotalColor = glGetUniformLocation( program, "TotalColor" );
+
+    AmbientColor = glGetUniformLocation( program, "AmbientColor" );
+    DiffuseColor = glGetUniformLocation( program, "DiffuseColor" );
+    SpecColor = glGetUniformLocation( program, "SpecColor" );
 
     init();
 
