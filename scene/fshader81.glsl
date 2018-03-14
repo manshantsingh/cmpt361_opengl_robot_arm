@@ -7,9 +7,9 @@ in vec3 vertPos;
 out vec4 fColor;
 
 
-const vec3 lightPos = vec3(0, -5, -25);
+const vec3 lightPos = vec3(0, -50, -100);
 const vec3 lightColor = vec3(1.0, 1.0, 1.0);
-const float lightPower = 1000.0;
+const float lightPower = 10000.0;
 
 const vec3 ambientColor = vec3(0.1, 0.0, 0.0);
 // const vec3 diffuseColor = vec3(0.5, 0.0, 0.0);
