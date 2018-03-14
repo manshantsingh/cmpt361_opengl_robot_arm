@@ -74,14 +74,25 @@ void setShaderMatrixes(mat4 tempMV){
     glUniformMatrix4fv( NormalMatrix, 1, GL_TRUE, tempNM );
 }
 
-point4 triangle_normal(point4 a, point4 b, point4 c, bool straight=true){
-    if(straight) return normalize(point4(cross(a-b, c-b), 1));
-    else return normalize(point4(cross(a-b, b-c), 1));
+void setProjectionMatrix(){
+
+    // mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
+    mat4 projection = Perspective( 100, WINDOWS_X/WINDOWS_Y, 1, 50);
+    projection *= LookAt(vec4(0,5,-15,1), vec4(0,0,1,0), vec4(0,1,0,0));
+    glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
+
+    model_view = mat4( 1.0 );  // An Identity matrix
 }
 
-void quad( int a, int b, int c, int d , bool straight = true)
+point4 triangle_normal(point4 a, point4 b, point4 c){
+    // if(straight) 
+    return normalize(point4(cross(b-a, c-a), 1));
+    // else return normalize(point4(cross(b-a, a-c), 1));
+}
+
+void quad( int a, int b, int c, int d, bool straight = true)
 {
-    point4 quadNormal = triangle_normal(cuboidVertices[a], cuboidVertices[b], cuboidVertices[c], straight);
+    point4 quadNormal = triangle_normal(cuboidVertices[a], cuboidVertices[b], cuboidVertices[c]);
 
     for(int i=0;i<6;i++){
         cuboidNormals[Index+i] = quadNormal;
@@ -89,7 +100,7 @@ void quad( int a, int b, int c, int d , bool straight = true)
     cuboidPoints[Index] = cuboidVertices[a]; Index++;
     cuboidPoints[Index] = cuboidVertices[b]; Index++;
     cuboidPoints[Index] = cuboidVertices[c]; Index++;
-    cuboidPoints[Index] = cuboidVertices[a]; Index++;
+    cuboidPoints[Index] = cuboidVertices[b]; Index++;
     cuboidPoints[Index] = cuboidVertices[c]; Index++;
     cuboidPoints[Index] = cuboidVertices[d]; Index++;
 }
@@ -97,12 +108,23 @@ void quad( int a, int b, int c, int d , bool straight = true)
 void colorcube()
 {
     Index = 0;
-    quad( 1, 0, 3, 2 , false);
-    quad( 2, 3, 7, 6 );
-    quad( 3, 0, 4, 7 );
-    quad( 6, 5, 1, 2 );
-    quad( 4, 5, 6, 7 , false);
-    quad( 5, 4, 0, 1 );
+    // quad( 1, 0, 3, 2 , false);
+    // quad( 2, 3, 7, 6 );
+    // // quad( 2, 3, 7, 6 , mat4(RotateZ(90)));
+    // // quad( 2, 3, 7, 6 , mat4(RotateZ(180)));
+    // // quad( 2, 3, 7, 6 , mat4(RotateZ(270)));
+    // // quad( 2, 3, 7, 6 , mat4(RotateY(90)));
+    // // quad( 2, 3, 7, 6 , mat4(RotateY(270)));
+    // quad( 3, 0, 4, 7 );
+    // quad( 6, 5, 1, 2 );
+    // quad( 4, 5, 6, 7 );
+    // quad( 5, 4, 0, 1 );
+    quad(4,5,7,6); //front
+    quad(5,1,6,2); //top
+    quad(0,4,3,7); //bottom
+    quad(0,1,4,5); //left
+    quad(7,6,3,2); //right
+    quad(3,2,0,1); //back
 }
 
 void compute_sphere(){
@@ -199,7 +221,8 @@ void display( void )
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     model_view = mat4(1.0);
 
-    draw_cuboid(Translate( 0, -0.5, 0 ) * Scale(90, 5, 50), color4(0, 1, 0, 1));
+    draw_cuboid( Translate( 0, 0, 0 ) * Scale(90, 1, 50), color4(0, 1, 0, 1));
+    draw_sphere( Translate( 0, 3, 0 ) * Scale(1, 1, 1), color4(1, 0, 1, 1));
 
     glutSwapBuffers();
 }
@@ -333,37 +356,11 @@ void init(){
     glClearColor( 0.0, 1.0, 1.0, 1.0 ); 
 }
 
-//----------------------------------------------------------------------------
 
-// void mouse( int button, int state, int x, int y )
-// {
-
-//     if ( button == GLUT_LEFT_BUTTON && state == GLUT_DOWN ) {
-//     	// Incrase the joint angle
-//     	Theta[Axis] += 5.0;
-//     	if ( Theta[Axis] > 360.0 ) { Theta[Axis] -= 360.0; }
-//     }
-
-//     if ( button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN ) {
-//     	// Decrase the joint angle
-//     	Theta[Axis] -= 5.0;
-//     	if ( Theta[Axis] < 0.0 ) { Theta[Axis] += 360.0; }
-//     }
-//     glutPostRedisplay();
-//     for(auto x: Theta) std::cout<<x<<'\t'; std::cout<<std::endl;
-// }
 
 //----------------------------------------------------------------------------
 
-void setProjectionMatrix(){
 
-    // mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
-    mat4 projection = Perspective( 100, WINDOWS_X/WINDOWS_Y, 1, 50);
-    projection *= LookAt(vec4(0,5,-15,1), vec4(0,0,1,0), vec4(0,1,0,0));
-    glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
-
-    model_view = mat4( 1.0 );  // An Identity matrix
-}
 
 //----------------------------------------------------------------------------
 
