@@ -19,13 +19,11 @@ point4 cuboidNormals[NumCuboidVertices];
 
 const int NumSphereQuadVertices = 342; // 8 rows of 18 quads
 point4 sphereQuadPoints[NumSphereQuadVertices];
-color4 sphereQuadColors[NumSphereQuadVertices];
-point4 sphereQuadNormals[NumSphereQuadVertices];
+color4 sphereQuadNormals[NumSphereQuadVertices];
 
 const int NumSphereFanVertices = 40;
 point4 sphereFanPoints[NumSphereFanVertices];
-color4 sphereFanColors[NumSphereFanVertices];
-point4 sphereFanNormals[NumSphereFanVertices];
+color4 sphereFanNormals[NumSphereFanVertices];
 
 point4 cuboidVertices[8] = {
     point4( -0.5, -0.5,  0.5, 1.0 ),
@@ -73,7 +71,7 @@ const GLfloat UPPER_ARM_WIDTH  = 1.0;
 mat4  model_view;
 
 GLuint program, cuboid_vao, cuboid_outline_vao, sphere_fan_vao, sphere_quad_vao;
-GLuint vPosition, vColor, vNormal, ModelView, Projection, NormalMatrix;
+GLuint vPosition, vNormal, ModelView, Projection, NormalMatrix, TotalColor;
 
 // Array of rotation angles (in degrees) for each rotation axis
 enum { Base = 0, LowerArm = 1, UpperArm = 2, NumAngles = 3 };
@@ -100,30 +98,23 @@ void setShaderMatrixes(mat4 tempMV){
     glUniformMatrix4fv( NormalMatrix, 1, GL_TRUE, tempNM );
 }
 
+point4 triangle_normal(point4 a, point4 b, point4 c, bool straight=true){
+    if(straight) return normalize(point4(cross(a-b, c-b), 1));
+    else return normalize(point4(cross(a-b, b-c), 1));
+}
+
 void quad( int a, int b, int c, int d , bool straight = true)
 {
-    point4 edge1 = cuboidVertices[a]-cuboidVertices[b];
-    point4 edge2 = cuboidVertices[c]-cuboidVertices[b];
-    if(!straight){
-        edge2 = -edge2;
-    }
-    point4 quadNormal = normalize(point4(cross(edge1, edge2), 1));
-        std::cout<<"edge1: "<<edge1<<"\t\tedge2: "<<edge2
-                <<"\t\tcomputation: "<<quadNormal<<std::endl;
+    point4 quadNormal = triangle_normal(cuboidVertices[a], cuboidVertices[b], cuboidVertices[c], straight);
+
     for(int i=0;i<6;i++){
         cuboidNormals[Index+i] = quadNormal;
     }
-    cuboidColors[Index] = vertex_colors[a];
     cuboidPoints[Index] = cuboidVertices[a]; Index++;
-    cuboidColors[Index] = vertex_colors[a];
     cuboidPoints[Index] = cuboidVertices[b]; Index++;
-    cuboidColors[Index] = vertex_colors[a];
     cuboidPoints[Index] = cuboidVertices[c]; Index++;
-    cuboidColors[Index] = vertex_colors[a];
     cuboidPoints[Index] = cuboidVertices[a]; Index++;
-    cuboidColors[Index] = vertex_colors[a];
     cuboidPoints[Index] = cuboidVertices[c]; Index++;
-    cuboidColors[Index] = vertex_colors[a];
     cuboidPoints[Index] = cuboidVertices[d]; Index++;
 }
 
@@ -181,11 +172,11 @@ void compute_sphere(){
         k++;
     }
 
-    for(auto& x: sphereFanColors) {
-        x = vertex_colors[1];
+    for(int i=0;i<NumSphereQuadVertices;i++){
+        sphereQuadNormals[i] = normalize(sphereQuadPoints[i]-vec3(0.0, 0.0, 0.0));
     }
-    for(auto& x: sphereQuadColors) {
-        x = vertex_colors[1];
+    for(int i=0;i<NumSphereFanVertices;i++){
+        sphereFanNormals[i] = normalize(sphereFanPoints[i]-vec3(0.0, 0.0, 0.0));
     }
 }
 
@@ -298,22 +289,37 @@ void lower_arm()
     // glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
 }
 
+void draw_cuboid(mat4 m, color4 selectedColor){
+    // mat4 instance = ( Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) *
+    //           Scale( LOWER_ARM_WIDTH,
+    //              LOWER_ARM_HEIGHT,
+    //              LOWER_ARM_WIDTH ) );
+
+    setShaderMatrixes( model_view * m );
+    glUniform4fv( TotalColor, 1, selectedColor );
+
+    glBindVertexArray( cuboid_vao );
+    glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+    glDrawArrays( GL_TRIANGLES, 0, NumCuboidVertices );
+}
+
 //----------------------------------------------------------------------------
 
-void draw_sphere(mat4 m = Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ))
+void draw_sphere(mat4 m, color4 selectedColor)
 {
     // TODO: msk change the bottom one
     mat4 instance = ( m * Scale(3,3,3)
               );
 
     setShaderMatrixes( model_view * instance );
+    glUniform4fv( TotalColor, 1, selectedColor );
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
     glBindVertexArray( sphere_quad_vao );
-    glDrawArrays( GL_LINE_STRIP, 0, NumSphereQuadVertices );
+    glDrawArrays( GL_TRIANGLE_STRIP, 0, NumSphereQuadVertices );
 
     glBindVertexArray( sphere_fan_vao );
-    glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+    // glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
     glDrawArrays( GL_TRIANGLE_FAN, 0, NumSphereFanVertices/2 );
     glDrawArrays( GL_TRIANGLE_FAN, NumSphereFanVertices/2, NumSphereFanVertices/2 );
 }
@@ -323,38 +329,43 @@ void draw_sphere(mat4 m = Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ))
 void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    model_view = mat4(1.0);
 
-    if(isTopView){
-        model_view = RotateX(90);
-    }
-    else{
-        model_view = mat4(1.0);
-    }
+    draw_cuboid(Scale(90, 5, 50), color4(0, 0.8, 0, 1));
 
-    // if(currentAnimationState == AT_OLD){
-    //     draw_sphere(Translate(oldPosition));
-    // }
-    // else if(currentAnimationState == AT_NEW || currentAnimationState == ALL_DONE){
-    //     draw_sphere(Translate(newPosition));
-    // }
+    if(currentAnimationState == AT_OLD){
+        draw_sphere(Translate(oldPosition), vertex_colors[4]);
+    }
+    else if(currentAnimationState == AT_NEW || currentAnimationState == ALL_DONE){
+        draw_sphere(Translate(newPosition), vertex_colors[4]);
+    }
 
     // Accumulate ModelView Matrix as we traverse the tree
     model_view *= RotateY(Theta[Base] );
-    base();
+    draw_cuboid(Translate( 0.0, 0.5 * BASE_HEIGHT, 0.0 ) *
+         Scale( BASE_WIDTH,
+            BASE_HEIGHT,
+            BASE_WIDTH ), vertex_colors[3]);
 
     model_view *= ( Translate(0.0, BASE_HEIGHT, 0.0) *
 		    RotateZ(Theta[LowerArm]) );
-    lower_arm();
+    draw_cuboid(Translate( 0.0, 0.5 * LOWER_ARM_HEIGHT, 0.0 ) *
+              Scale( LOWER_ARM_WIDTH,
+                 LOWER_ARM_HEIGHT,
+                 LOWER_ARM_WIDTH ), vertex_colors[1]);
 
     model_view *= ( Translate(0.0, LOWER_ARM_HEIGHT, 0.0) *
 		    RotateZ(Theta[UpperArm]) );
-    upper_arm();
+    draw_cuboid(Translate( 0.0, 0.5 * UPPER_ARM_HEIGHT, 0.0 ) *
+              Scale( UPPER_ARM_WIDTH,
+                 UPPER_ARM_HEIGHT,
+                 UPPER_ARM_WIDTH ), vertex_colors[2]);
 
-    // if(currentAnimationState == ATTACHED_TO_ARM){
-    //     // transform
-    //     model_view *= Translate(0.0, UPPER_ARM_HEIGHT, 0.0);
-    //     draw_sphere();
-    // }
+    if(currentAnimationState == ATTACHED_TO_ARM){
+        // transform
+        model_view *= Translate(0.0, UPPER_ARM_HEIGHT, 0.0);
+        draw_sphere(Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ), vertex_colors[4]);
+    }
 
     glutSwapBuffers();
 }
@@ -377,23 +388,18 @@ void init_cuboid()
     // glBufferData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), cuboidPoints, GL_DYNAMIC_DRAW );
 
     glBufferData( GL_ARRAY_BUFFER,
-        sizeof(cuboidPoints) + sizeof(cuboidColors) + sizeof(cuboidNormals),
+        sizeof(cuboidPoints) + sizeof(cuboidNormals),
         NULL, GL_DYNAMIC_DRAW );
     glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(cuboidPoints), cuboidPoints );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), sizeof(cuboidColors), cuboidColors );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints)+sizeof(cuboidColors), sizeof(cuboidNormals), cuboidNormals );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), sizeof(cuboidNormals), cuboidNormals );
 
     glEnableVertexAttribArray( vPosition );
     glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
 			   BUFFER_OFFSET(0) );
 
-    glEnableVertexAttribArray( vColor );
-    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
-			   BUFFER_OFFSET(sizeof(cuboidPoints)) );
-
     glEnableVertexAttribArray( vNormal );
     glVertexAttribPointer( vNormal, 4, GL_FLOAT, GL_FALSE, 0,
-               BUFFER_OFFSET(sizeof(cuboidPoints)+sizeof(cuboidColors)) );
+               BUFFER_OFFSET(sizeof(cuboidPoints)) );
 }
 
 void init_cuboid_outline()
@@ -413,24 +419,19 @@ void init_cuboid_outline()
     // glBufferData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), cuboidPoints, GL_DYNAMIC_DRAW );
 
     glBufferData( GL_ARRAY_BUFFER, 
-        sizeof(cuboidPoints) + sizeof(colors) + sizeof(cuboidNormals),
+        sizeof(cuboidPoints) + sizeof(cuboidNormals),
         NULL, GL_DYNAMIC_DRAW );
     glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(cuboidPoints), cuboidPoints );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), sizeof(colors), colors );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints)+sizeof(colors), sizeof(cuboidNormals), cuboidNormals );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(cuboidPoints), sizeof(cuboidNormals), cuboidNormals );
 
 
     glEnableVertexAttribArray( vPosition );
     glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
                BUFFER_OFFSET(0) );
 
-    glEnableVertexAttribArray( vColor );
-    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
-               BUFFER_OFFSET(sizeof(cuboidPoints)) );
-
     glEnableVertexAttribArray( vNormal );
     glVertexAttribPointer( vNormal, 4, GL_FLOAT, GL_FALSE, 0,
-               BUFFER_OFFSET(sizeof(cuboidPoints)+sizeof(colors)) );
+               BUFFER_OFFSET(sizeof(cuboidPoints)) );
 }
 
 void init_sphere_quad()
@@ -445,17 +446,17 @@ void init_sphere_quad()
     glBindBuffer( GL_ARRAY_BUFFER, buffer );
 
     glBufferData( GL_ARRAY_BUFFER, 
-        sizeof(sphereQuadPoints) + sizeof(sphereQuadColors),
+        sizeof(sphereQuadPoints) + sizeof(sphereQuadNormals),
         NULL, GL_DYNAMIC_DRAW );
     glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(sphereQuadPoints), sphereQuadPoints );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(sphereQuadPoints), sizeof(sphereQuadColors), sphereQuadColors );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(sphereQuadPoints), sizeof(sphereQuadNormals), sphereQuadNormals );
 
     glEnableVertexAttribArray( vPosition );
     glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
                BUFFER_OFFSET(0) );
 
-    glEnableVertexAttribArray( vColor );
-    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
+    glEnableVertexAttribArray( vNormal );
+    glVertexAttribPointer( vNormal, 4, GL_FLOAT, GL_FALSE, 0,
                BUFFER_OFFSET(sizeof(sphereQuadPoints)) );
 }
 
@@ -471,26 +472,26 @@ void init_sphere_fan()
     glBindBuffer( GL_ARRAY_BUFFER, buffer );
 
     glBufferData( GL_ARRAY_BUFFER, 
-        sizeof(sphereFanPoints) + sizeof(sphereFanColors),
+        sizeof(sphereFanPoints) + sizeof(sphereFanNormals),
         NULL, GL_DYNAMIC_DRAW );
     glBufferSubData( GL_ARRAY_BUFFER, 0, sizeof(sphereFanPoints), sphereFanPoints );
-    glBufferSubData( GL_ARRAY_BUFFER, sizeof(sphereFanPoints), sizeof(sphereFanColors), sphereFanColors );
+    glBufferSubData( GL_ARRAY_BUFFER, sizeof(sphereFanPoints), sizeof(sphereFanNormals), sphereFanNormals );
 
     glEnableVertexAttribArray( vPosition );
     glVertexAttribPointer( vPosition, 4, GL_FLOAT, GL_FALSE, 0,
                BUFFER_OFFSET(0) );
 
-    glEnableVertexAttribArray( vColor );
-    glVertexAttribPointer( vColor, 4, GL_FLOAT, GL_FALSE, 0,
+    glEnableVertexAttribArray( vNormal );
+    glVertexAttribPointer( vNormal, 4, GL_FLOAT, GL_FALSE, 0,
                BUFFER_OFFSET(sizeof(sphereFanPoints)) );
 }
 
 void init(){
     init_cuboid();
     init_cuboid_outline();
-    // compute_sphere();
-    // init_sphere_quad();
-    // init_sphere_fan();
+    compute_sphere();
+    init_sphere_quad();
+    init_sphere_fan();
 
     glEnable( GL_DEPTH_TEST );
     glDepthFunc(GL_LESS);
@@ -645,8 +646,8 @@ int main( int argc, char **argv )
     // for(int i=0;i<argc; i++){
     //     printf("args %d: %s\n\n", i, argv[i]);
     // }
-    oldPosition = point4(5,0,0,1);
-    newPosition = oldPosition;
+    oldPosition = point4(5,0,2,1);
+    newPosition = point4(-5,4,-2,1);;
     isTopView = false;
     // oldPosition = point4(atof(argv[1]), atof(argv[2]), atof(argv[3]), 1);
     // newPosition = point4(atof(argv[4]), atof(argv[5]), atof(argv[6]), 1);
@@ -682,13 +683,13 @@ int main( int argc, char **argv )
     glUseProgram( program );
 
     vPosition = glGetAttribLocation( program, "vPosition" );
-    vColor = glGetAttribLocation( program, "vColor" );
     vNormal = glGetAttribLocation( program, "vNormal" );
 
     ModelView = glGetUniformLocation( program, "ModelView" );
     Projection = glGetUniformLocation( program, "Projection" );
     NormalMatrix = glGetUniformLocation( program, "NormalMatrix" );
-    
+    TotalColor = glGetUniformLocation( program, "TotalColor" );
+
     init();
 
     glutDisplayFunc( display );
