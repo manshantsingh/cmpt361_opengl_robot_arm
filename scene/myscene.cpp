@@ -100,10 +100,13 @@ void setShaderMatrixes(mat4 tempMV){
     glUniformMatrix4fv( NormalMatrix, 1, GL_TRUE, tempNM );
 }
 
-void quad( int a, int b, int c, int d )
+void quad( int a, int b, int c, int d , bool straight = true)
 {
     point4 edge1 = cuboidVertices[a]-cuboidVertices[b];
     point4 edge2 = cuboidVertices[c]-cuboidVertices[b];
+    if(!straight){
+        edge2 = -edge2;
+    }
     point4 quadNormal = normalize(point4(cross(edge1, edge2), 1));
         std::cout<<"edge1: "<<edge1<<"\t\tedge2: "<<edge2
                 <<"\t\tcomputation: "<<quadNormal<<std::endl;
@@ -127,11 +130,11 @@ void quad( int a, int b, int c, int d )
 void colorcube()
 {
     Index = 0;
-    quad( 1, 0, 3, 2 );
+    quad( 1, 0, 3, 2 , false);
     quad( 2, 3, 7, 6 );
     quad( 3, 0, 4, 7 );
     quad( 6, 5, 1, 2 );
-    quad( 4, 5, 6, 7 );
+    quad( 4, 5, 6, 7 , false);
     quad( 5, 4, 0, 1 );
 }
 
@@ -306,8 +309,8 @@ void draw_sphere(mat4 m = Translate( 0.0, 0.5 * UPPER_ARM_WIDTH, 0.0 ))
     setShaderMatrixes( model_view * instance );
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
-    // glBindVertexArray( sphere_quad_vao );
-    // glDrawArrays( GL_LINE_STRIP, 0, NumSphereQuadVertices );
+    glBindVertexArray( sphere_quad_vao );
+    glDrawArrays( GL_LINE_STRIP, 0, NumSphereQuadVertices );
 
     glBindVertexArray( sphere_fan_vao );
     glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -642,7 +645,7 @@ int main( int argc, char **argv )
     // for(int i=0;i<argc; i++){
     //     printf("args %d: %s\n\n", i, argv[i]);
     // }
-    oldPosition = point4(5,0,5,1);
+    oldPosition = point4(5,0,0,1);
     newPosition = oldPosition;
     isTopView = false;
     // oldPosition = point4(atof(argv[1]), atof(argv[2]), atof(argv[3]), 1);
