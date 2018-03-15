@@ -44,11 +44,13 @@ point4 cuboidVertices[8] = {
 };
 
 unordered_map<string, material> myMap{
-    { "grass",              {vec3(1,1,1) * 0.1, vec3(0,1,0), vec3(0,0,0)} },
-    { "road",               {vec3(1,1,1) * 0.1, vec3(0,0,0), vec3(0,0,0)} },
-    { "road white line",    {vec3(1,1,1) * 0.1, vec3(1,1,1), vec3(0,0,0)} },
-    { "road yellow line",   {vec3(1,1,1) * 0.1, vec3(1,1,0), vec3(0,0,0)} },
-    { "lamp stick color",   {vec3(1,1,1) * 0.1, vec3(0,0,0.5), vec3(0,0,0)} }
+    { "grass",              {vec3(1,1,1) * 0.0, vec3(0,1,0), vec3(1,1,1)*0.5} },
+    { "road",               {vec3(1,1,1) * 0.0, vec3(0,0,0), vec3(1,1,1)*0.5} },
+    { "road white line",    {vec3(1,1,1) * 0.0, vec3(1,1,1), vec3(1,1,1)*0.5} },
+    { "road yellow line",   {vec3(1,1,1) * 0.0, vec3(1,1,0), vec3(1,1,1)*0.5} },
+    { "lamp stick color",   {vec3(1,1,1) * 0.0, vec3(0,0,0.5), vec3(1,1,1)*0.3} },
+    { "white sphere",       {vec3(1,1,1) * 1, vec3(1,1,1), vec3(1,1,1)*0} },
+    { "black sphere",       {vec3(1,1,1) * 0, vec3(0,0,0), vec3(1,1,1)*0} }
 };
 
 
@@ -79,9 +81,9 @@ void setShaderMatrixes(mat4 tempMV){
 void setProjectionMatrix(){
 
     // mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
-    mat4 projection = Perspective( 100, WINDOWS_X/WINDOWS_Y, 1, 50);
-    vec4 eye = vec4(-1, 4, -15, 1);
-    projection *= LookAt(eye, eye + vec4(0,0,1,0), vec4(0,1,0,0));
+    mat4 projection = Perspective( 100, WINDOWS_X/WINDOWS_Y, 1, 100);
+    vec4 eye = vec4(-1, 4, -15 , 1);
+    projection *= LookAt(eye, eye + vec4(0,0,1,0), vec4(0,1,0,0)); //camera
     glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
 
     model_view = mat4( 1.0 );  // An Identity matrix
@@ -212,15 +214,16 @@ void draw_lamp(mat4 m){
     material lc = myMap["lamp stick color"];
     draw_cuboid(m * Translate( 0, 2.4, 0 ) * Scale(0.5, 5, 0.5), lc);
     draw_cuboid(m * Translate( -0.5, 5, 0 ) * Scale(1.5, 0.5, 0.5), lc);
-    draw_sphere(m * Translate( -1, 4.5, 0 ) * Scale(vec3(1, 1, 1) * 0.3), lc);
+    draw_sphere(m * Translate( -1, 4.5, 0 ) * Scale(vec3(1, 1, 1) * 0.3), myMap["white sphere"]);
 }
 
 void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     model_view = mat4(1.0);
-    //hehe
-    // draw_sphere( Translate( 0, 3, 0 ) * Scale(1, 1, 1), color4(1, 0, 1, 1));
+    // hehe
+    draw_sphere( Translate( -20, 50, 80 ) * Scale(10, 10, 10), myMap["white sphere"]);
+    draw_sphere( Translate( -13, 48, 60 ) * Scale(7, 7, 7), myMap["black sphere"]);
 
     draw_cuboid( Translate( 0, 0, 0 ) * Scale(90, 1, 100), myMap["grass"]);
 
@@ -363,7 +366,7 @@ void init(){
     glEnable( GL_DEPTH_TEST );
     glDepthFunc(GL_LESS);
 
-    glClearColor( 0.0, 1.0, 1.0, 1.0 ); 
+    glClearColor( 0.0, 0.0, 0.0, 0.0 ); 
 }
 
 
@@ -404,7 +407,7 @@ int main( int argc, char **argv )
     glutInitWindowSize( WINDOWS_X, WINDOWS_Y );
     glutInitContextVersion( 3, 2 );
     glutInitContextProfile( GLUT_CORE_PROFILE );
-    glutCreateWindow( "myrobot" );
+    glutCreateWindow( "myscene" );
 
     // Iff you get a segmentation error at line 34, please uncomment the line below
     glewExperimental = GL_TRUE; 

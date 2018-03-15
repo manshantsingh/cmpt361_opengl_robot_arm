@@ -16,9 +16,12 @@ struct Light{
   float power;
 };
 
-const int NUM_LIGHTS = 2;
+const int NUM_LIGHTS = 20;
 Light lights[NUM_LIGHTS];
 
+const vec3 LAMP_COLOR = vec3(1.0, 1.0, 0.3);
+const float LAMP_POWER = 5.0;
+const float LAMP_DISTANCE = 3.5;
 
 // lights[0].pos = vec3(0, -50, -100);
 // lights[0].color = vec3(1.0, 1.0, 1.0);
@@ -33,10 +36,16 @@ const float screenGamma = 2.2; // Assume the monitor is calibrated to the sRGB c
 
 void main() 
 { 
-
-  lights[0] = Light(vec3(0, 50, 100), vec3(1.0, 1.0, 1.0), 50000.0);
-  lights[1] = Light(vec3(0, 50, -100), vec3(1.0, 1.0, 1.0), 50000.0);
-  // lights[2] = Light(vec3(0, 50, 0), vec3(1.0, 1.0, 1.0), 50000.0);
+  for(int i=0;i<NUM_LIGHTS;i+=2){
+    lights[i] = Light(vec3(3.7, 4.5, -10 +i*LAMP_DISTANCE), LAMP_COLOR, LAMP_POWER);
+    lights[i+1] = Light(vec3(-5.5, 4.5, -10.5 +i*LAMP_DISTANCE), LAMP_COLOR, LAMP_POWER);
+  }
+  // lights[0] = Light(vec3(0, 50, 100), vec3(1.0, 1.0, 1.0), 0.0);
+  // lights[1] = Light(vec3(0, 50, -100), vec3(1.0, 1.0, 1.0), 0.0);
+  // lights[2] = Light(vec3(3.7, 4.5, -11), vec3(1.0, 1.0, 0.3), 5.0);
+  // lights[3] = Light(vec3(-5.0, 4.5, -11), vec3(1.0, 1.0, 0.3), 5.0);
+  // lights[2] = Light(vec3(0, 50, 0), vec3(1.0, 1.0, 1.0), 0.0);
+  // lights[2] = Light(vec3(0, 50, 0), vec3(1.0, 1.0, 1.0), 0.0);
 
     //msk
   // vec3 diffuseColor = vec3(color);
