@@ -44,8 +44,11 @@ point4 cuboidVertices[8] = {
 };
 
 unordered_map<string, material> myMap{
-    { "grass",    {vec3(0,0,0), vec3(0,1,0), vec3(0,0,0)} },
-    { "road",     {vec3(0,0,0), vec3(0,0,0), vec3(0,0,0)} }
+    { "grass",              {vec3(1,1,1) * 0.1, vec3(0,1,0), vec3(0,0,0)} },
+    { "road",               {vec3(1,1,1) * 0.1, vec3(0,0,0), vec3(0,0,0)} },
+    { "road white line",    {vec3(1,1,1) * 0.1, vec3(1,1,1), vec3(0,0,0)} },
+    { "road yellow line",   {vec3(1,1,1) * 0.1, vec3(1,1,0), vec3(0,0,0)} },
+    { "lamp stick color",   {vec3(1,1,1) * 0.1, vec3(0,0,0.5), vec3(0,0,0)} }
 };
 
 
@@ -77,7 +80,8 @@ void setProjectionMatrix(){
 
     // mat4 projection = Ortho( left, right, bottom, top, zNear, zFar );
     mat4 projection = Perspective( 100, WINDOWS_X/WINDOWS_Y, 1, 50);
-    projection *= LookAt(vec4(0,5,-15,1), vec4(0,0,1,0), vec4(0,1,0,0));
+    vec4 eye = vec4(-1, 4, -15, 1);
+    projection *= LookAt(eye, eye + vec4(0,0,1,0), vec4(0,1,0,0));
     glUniformMatrix4fv( Projection, 1, GL_TRUE, projection );
 
     model_view = mat4( 1.0 );  // An Identity matrix
@@ -188,9 +192,8 @@ void draw_cuboid(mat4 m, material objectMaterial){
 void draw_sphere(mat4 m, material objectMaterial)
 {
     // TODO: msk change the bottom one
-    mat4 instance = ( m * Scale(3,3,3));
 
-    setShaderMatrixes( model_view * instance );
+    setShaderMatrixes( model_view * m );
     setMaterial(objectMaterial);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
@@ -205,6 +208,13 @@ void draw_sphere(mat4 m, material objectMaterial)
 
 //----------------------------------------------------------------------------
 
+void draw_lamp(mat4 m){
+    material lc = myMap["lamp stick color"];
+    draw_cuboid(m * Translate( 0, 2.4, 0 ) * Scale(0.5, 5, 0.5), lc);
+    draw_cuboid(m * Translate( -0.5, 5, 0 ) * Scale(1.5, 0.5, 0.5), lc);
+    draw_sphere(m * Translate( -1, 4.5, 0 ) * Scale(vec3(1, 1, 1) * 0.3), lc);
+}
+
 void display( void )
 {
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
@@ -212,9 +222,17 @@ void display( void )
     //hehe
     // draw_sphere( Translate( 0, 3, 0 ) * Scale(1, 1, 1), color4(1, 0, 1, 1));
 
-    draw_cuboid( Translate( 0, 0, 0 ) * Scale(90, 1, 50), myMap["grass"]);
+    draw_cuboid( Translate( 0, 0, 0 ) * Scale(90, 1, 100), myMap["grass"]);
 
-    draw_cuboid( Translate( 0, 0.1, 0 ) * Scale(20, 1, 50), myMap["road"]);
+    draw_cuboid( Translate( 0, 0.1, 0 ) * Scale(7, 1, 100), myMap["road"]);
+    draw_cuboid( Translate( -3, 0.2, 0 ) * Scale(0.1, 1, 100), myMap["road white line"]);
+    draw_cuboid( Translate( 3, 0.2, 0 ) * Scale(0.1, 1, 100), myMap["road white line"]);
+    draw_cuboid( Translate( -0.25, 0.2, 0 ) * Scale(0.1, 1, 100), myMap["road yellow line"]);
+
+    for(int i=0;i<10;i++){
+        draw_lamp(Translate(4, 0, -12 + i * 7));
+        draw_lamp(Translate(-4, 0, -12 + i * 7) * Scale(-1,1,1));
+    }
 
     glutSwapBuffers();
 }
